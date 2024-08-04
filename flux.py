@@ -71,5 +71,10 @@ output_entry = tk.Entry(root, width=80)
 output_entry.pack(pady=10)
 output_entry.config(state='readonly')
 
+# Create and place the close button
+close_button = tk.Button(root, text="Close Window", command=root.quit)
+close_button.pack(pady=10)
+
+
 # Run the GUI event loop
 root.mainloop()
