@@ -48,9 +48,7 @@ def download_image(url, filename):
 
 def generate_image():
     prompt = prompt_entry.get()
-    aspect_ratio = aspect_ratio_entry.get()
     logging.info("Prompt entered: %s", prompt)
-    logging.info("Aspect ratio entered: %s", aspect_ratio)
     
     if not prompt:
         logging.warning("No prompt entered.")
@@ -58,8 +56,7 @@ def generate_image():
         return
 
     input = {
-        "prompt": prompt,
-        "aspect_ratio": aspect_ratio
+        "prompt": prompt
     }
 
     try:
@@ -119,12 +116,6 @@ prompt_label = tk.Label(root, text="Enter your prompt:")
 prompt_label.pack(pady=10)
 prompt_entry = tk.Entry(root, width=50)
 prompt_entry.pack(pady=10)
-
-# Create and place the aspect ratio label and entry
-aspect_ratio_label = tk.Label(root, text="Enter aspect ratio (e.g., 16:9):")
-aspect_ratio_label.pack(pady=10)
-aspect_ratio_entry = tk.Entry(root, width=20)
-aspect_ratio_entry.pack(pady=10)
 
 # Create and place the generate button
 generate_button = tk.Button(root, text="Generate Image", command=generate_image)
