@@ -4,6 +4,7 @@ import replicate
 import webbrowser
 import csv
 import logging
+import requests
 
 # Configure logging
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s', filename='image_generation.log', filemode='w')
@@ -20,6 +21,30 @@ def read_last_prompt():
                 return ""
     except FileNotFoundError:
         return ""
+
+def read_last_output_url():
+    try:
+        with open('output_urls.csv', mode='r') as file:
+            reader = csv.reader(file)
+            rows = list(reader)
+            if rows:
+                last_output_url = rows[-1][0]
+                return last_output_url
+            else:
+                return ""
+    except FileNotFoundError:
+        return ""
+
+def download_image(url, filename):
+    try:
+        response = requests.get(url)
+        response.raise_for_status()
+        with open(filename, 'wb') as file:
+            file.write(response.content)
+        messagebox.showinfo("Download Complete", f"Image downloaded as {filename}")
+    except Exception as e:
+        logging.error("An error occurred while downloading the image: %s", e)
+        messagebox.showerror("Error", f"An error occurred while downloading the image: {e}")
 
 def generate_image():
     prompt = prompt_entry.get()
@@ -47,12 +72,12 @@ def generate_image():
         output_entry.insert(0, output)
         output_entry.config(state='readonly')
         
-        # Save the prompt to a CSV file
-        logging.info("Saving prompt and output to CSV.")
+        # Save the prompt to prompts.csv
+        logging.info("Saving prompt to prompts.csv.")
         with open('prompts.csv', mode='a', newline='') as file:
             writer = csv.writer(file)
-            writer.writerow([prompt, output])
-
+            writer.writerow([prompt])
+        
         # Save the output URL to output_urls.csv
         logging.info("Saving output URL to output_urls.csv.")
         with open('output_urls.csv', mode='a', newline='') as file:
@@ -74,6 +99,13 @@ def use_last_prompt():
         prompt_entry.insert(0, last_prompt)
     else:
         messagebox.showinfo("Info", "No previous prompt found.")
+
+def download_last_image():
+    last_output_url = read_last_output_url()
+    if last_output_url:
+        download_image(last_output_url, "last_generated_image.png")
+    else:
+        messagebox.showinfo("Info", "No previous output URL found.")
 
 # Create the main window
 root = tk.Tk()
@@ -101,6 +133,10 @@ output_label.pack(pady=10)
 output_entry = tk.Entry(root, width=80)
 output_entry.pack(pady=10)
 output_entry.config(state='readonly')
+
+# Create and place the download last image button
+download_last_image_button = tk.Button(root, text="Download Last Created Image", command=download_last_image)
+download_last_image_button.pack(pady=10)
 
 # Create and place the close button
 close_button = tk.Button(root, text="Close Window", command=root.quit)
