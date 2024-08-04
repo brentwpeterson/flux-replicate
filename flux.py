@@ -52,6 +52,12 @@ def generate_image():
         with open('prompts.csv', mode='a', newline='') as file:
             writer = csv.writer(file)
             writer.writerow([prompt, output])
+
+        # Save the output URL to output_urls.csv
+        logging.info("Saving output URL to output_urls.csv.")
+        with open('output_urls.csv', mode='a', newline='') as file:
+            writer = csv.writer(file)
+            writer.writerow([output])
         
         # Open the image URL in a web browser
         logging.info("Opening web browser with URL: %s", output)
