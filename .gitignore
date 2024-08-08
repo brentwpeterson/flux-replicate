@@ -3,3 +3,5 @@ output_urls.csv
 /venv
 *png
 *log
+.env
+.idea
