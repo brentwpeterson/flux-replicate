@@ -1,0 +1,177 @@
+https://replicate.com/blog/fine-tune-flux-with-an-api
+
+Fine-tune FLUX.1 with an API
+
+FLUX.1 is all the rage these days, and for good reason. It's a fast, powerful image generation model that's easy to use and fine-tune, and it generates stunning images.
+
+Last week we brought you a guide to fine-tuning Flux with faces. That guide used an entirely web-based flow to create a fine-tuned Flux model, without writing a single line of code.
+
+We heard from some users that they would like to fine-tune Flux with an API, so we're back this week with another tutorial that shows you how to do just that.
+
+In this guide, you'll create and run your own fine-tuned Flux models programmatically using Replicate's HTTP API.
+
+cURL ftw
+Kick off your Flux trainings programmatically with Replicate's HTTP API.
+Step 0: Prerequisites
+Here's what you'll need to get started:
+
+A Replicate account
+A handful of training images
+A small budget of 2-3 US dollars for training costs
+cURL, the beloved command-line tool for making HTTP requests that's been around since the 1990s
+Step 1: Gather your training images
+You'll need a few images of yourself to get started.
+
+You can fine-tune Flux with as few as two training images, but for best results you'll want to use at least 10 images or more. In theory you'll get continually better results as you include more images in the training data, but the training process can take longer the more images you add.
+
+Consider the following when gathering your training images:
+
+WebP, JPG, and PNG formats are all supported.
+Use 1024x1024 or higher resolution if possible.
+Filenames don't matter. Name your files whatever you like.
+Images can have different aspect ratios; they don't all need to be square, landscape or portrait.
+10 images is a good minimum.
+Once you've gathered your images, put them in a zip file. Assuming you put them all in a folder called data, run this command to generate a file called data.zip:
+
+zip -r data.zip data
+Step 2: Set an API token in your environment
+You'll need an API token to make requests to the Replicate API.
+
+Visit replicate.com/account/api-tokens to create a new API token, then copy it to your clipboard.
+
+Most Replicate tools like the client libraries and the Replicate CLI follow the convention of looking for an API token in an environment variable called REPLICATE_API_TOKEN.
+
+Set the REPLICATE_API_TOKEN environment variable by running this command in your terminal:
+
+export REPLICATE_API_TOKEN="r8_..."
+Tip: If you're going to be making a lot of API requests using cURL commands or code on your own computer, you might want to set the REPLICATE_API_TOKEN environment variable in your shell profile or dotfiles so you don't have to type it out every time you open a new terminal window.
+
+Step 3: Create the destination model
+Next, you'll create an empty model on Replicate for your trained model. When your training finishes, it will be pushed as a new version to this model.
+
+You can create models under your own personal account or in an organization if you want to share access with your team or other collaborators.
+
+There are several ways to create models on Replicate, like using the Replicate web UI or the Replicate CLI, but in this guide we'll create the model by making a cURL request to the models.create API endpoint.
+
+Choose a descriptive name for your model, like flux-my-cool-finetune or flux-my-dog-fluffy. A popular convention for Flux models is to include flux somewhere in the name, but that's not required.
+
+Run this command in your terminal to create the model, replacing your-username and your-model-name with the correct values:
+
+curl -s -X POST \
+  -H "Authorization: Bearer $REPLICATE_API_TOKEN" \
+  -H 'Content-Type: application/json' \
+  -d '{"owner": "your-username", "name": "your-model-name", "description": "An example model", "visibility": "public", "hardware": "gpu-a40-large"}' \
+  https://api.replicate.com/v1/models
+Step 4: Upload your training data
+Next you'll need to upload your zip file somewhere on the internet that is publicly accessible, like an S3 bucket or a GitHub Pages site.
+
+You can also use Replicate's Files API to upload your training data. Here's an example of how to do that with cURL, assuming you named your training data file data.zip:
+
+curl -s -X POST "https://api.replicate.com/v1/files" \
+  -H "Authorization: Bearer $REPLICATE_API_TOKEN" \
+  -H "Content-Type: multipart/form-data" \
+  -F "content=@data.zip;type=application/zip;filename=data.zip"
+The output will be a JSON response containing the URL of the uploaded file:
+
+{"id":"MThjNTQwOTEtNDJmNS00Mjc2LWIzMTUtMzczMTNmNzYyYTEw","name":"data.zip","content_type":"application/zip","size":1431986,"etag":"9c5b5aa1178bd843722a8cce85ba778b","checksums":{"sha256":"9d0efe1c32d02fd8a0b01af67bea357d7279522aff8b4158a37529abe4713103","md5":"9c5b5aa1178bd843722a8cce85ba778b"},"metadata":{},"created_at":"2024-09-09T20:17:37.031Z","expires_at":"2024-09-10T20:17:37.031Z","urls":{"get":"https://api.replicate.com/v1/files/MThjNTQwOTEtNDJmNS00Mjc2LWIzMTUtMzczMTNmNzYyYTEw"}}
+Find the URL in that output that starts with https://api.replicate.com/v1... and copy it to your clipboard. You'll use it as an input to the training process in the next step.
+
+Tip: If you have the jq command-line JSON processor installed, you can upload the file and output the URL in one step like this:
+
+curl -s -X POST "https://api.replicate.com/v1/files" \
+  -H "Authorization: Bearer $REPLICATE_API_TOKEN" \
+  -H "Content-Type: multipart/form-data" \
+  -F "content=@data.zip;type=application/zip;filename=data.zip" | jq -r '.urls.get'
+Step 5: Start the training process
+Now that you've got your training data uploaded to a publicly accessible URL, the next step is to start the training process using the API.
+
+You'll be billed per second for the time the training process takes to run. Trainings for the Flux model run on Nvidia H100 GPU hardware, which costs $0.001528 per second at the time of this writing. For a 20-minute training (which is typical when using about 20 training images and 1000 steps), you can expect to pay about $1.85 USD. Once your model is trained, you can run it with an API just like any other Replicate model, and you'll only be billed for the compute time it takes to generate an image.
+
+There are many inputs to the training process like the number of training steps, LoRA rank, learning rate, etc, but there are only two inputs you'll need to explicitly set:
+
+input_images: The URL of the training data zip file you uploaded earlier.
+trigger_word: A unique string of characters like CYBRPNK3000 that is not a word or phrase in any language. See our last Flux fine-tune guide on faces for more details about how to choose a good trigger word.
+Now it's time to make the training request with cURL, replacing your-username and your-model-name with the correct values, as well as the input_images and trigger_word inputs:
+
+curl -X POST \
+  -H "Authorization: Bearer $REPLICATE_API_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+        "destination": "your-username/your-model-name",
+        "input": {
+            "input_images": "<your-training-data-url>",
+            "trigger_word": "<some-unique-string>"
+        }
+    }' \
+  https://api.replicate.com/v1/models/ostris/flux-dev-lora-trainer/versions/d995297071a44dcb72244e6c19462111649ec86a9646c32df56daa7f14801944/trainings
+Step 6: Check the status of your training
+The training process is pretty fast, but it still takes a few minutes. If you're using ten images and 1000 steps, it will take approximately 20 minutes. Use this opportunity to get up from your computer, stretch your arms and legs, grab a drink of water, etc.
+
+Go to replicate.com/trainings to check the status of your training. When it's finished, you'll see a page like this, with options to run the model on the web, plus code snippets for different programming languages to run the model with an API:
+
+Training output
+When the training completes, a new version of your model is automatically published for you. You can now see and run the new model on the web, or using the API.
+
+If you're a power user and want to get your hands on the actual LoRA weights that were generated as an artifact of the training process, you can find them in the .output.weights property of the training output. Here's an example of how to fetch the weights URL from the API using cURL and jq:
+
+curl -s \
+  -H "Authorization: Bearer $REPLICATE_API_TOKEN" \
+  https://api.replicate.com/v1/trainings/b238f3fypdrm00chv87srwwb44 | jq ".output.weights"
+
+# https://replicate.delivery/yhqm/khgdfEhsFfqL5Elzfojdg0nhcwOxHTOafvnOtVVEPPPvWeXyz/trained_model.tar
+Step 7: Generate images on the web
+Once the training process is complete, your model is ready to run. The easiest way to get started is by running it on the web.
+
+The only input you'll need to enter is the prompt. The rest you can leave alone to start. Flux is great at following long prompts, so the more detailed and descriptive you make the prompt the better.
+
+Be sure to include your trigger_word in the prompt to activate your newly trained concept in the resulting images. Including the trigger word in your prompt is a way of telling the model, "hey, you should focus the output on the stuff we trained on". Let's say you had a model that makes images in the style of the Minecraft movie, with the trigger word MNCRFTMOV. Your prompt might be something like "a MNCRFTMOV film render of a blocky weird toad, minecraft style". You can experiment with the prompt, but always include the trigger word.
+
+Web playground output
+Run your new fine-tuned model from the Replicate web playground.
+Step 8: Generate images using the API
+The web playground is a great place to start playing with your new model, but generating images one click at a time can get old pretty fast. Luckily your model is also hosted in the cloud with an API, so you can run it from your own code using the programming language of your choice.
+
+When you run a model, you'll see tabs for different languages like Node.js and Python. These tabs contain code snippets that show you how to construct an API call to reproduce the exact inputs you just entered in the browser form.
+
+Click the Node.js tab in the web playground to see the API code:
+
+Run with Node.js
+Pre-made API snippets for your convenience.
+This will show the exact setup steps and code snippet you'll need to run the model on your own. Here's an abbreviated version of the Node.js code (with the trigger word ZIKI) to get you started:
+
+import Replicate from "replicate"
+const replicate = new Replicate()
+const model = "zeke/ziki-flux:dadc276a9062240e68f110ca06521752f334777a94f031feb0ae78ae3edca58e"
+const prompt = "ZIKI, an adult man, standing atop Mount Everest at dawn..."
+const output = await replicate.run(model, { input: { prompt } })
+console.log(output)
+Step 9: Use a language model to write better prompts
+Sometimes it's hard to think of a good prompt from scratch, and using a really simple prompt like "ZIKI wearing a turtleneck holiday sweater" is not going to give you very interesting results.
+
+This is where language models come to the rescue. Here's an example language model prompt to help crank out some ideas for interesting image-generation prompts:
+
+Write ten prompts for an image generation model. The prompts should describe a fictitious person named ZIKI in various scenarios. Make sure to use the word ZIKI in all caps in every prompt. Make the prompts highly detailed and interesting, and make them varied in subject matter. Make sure the prompts will generate images that include unobscured facial details. ZIKI is a 43 year old adult male. Include some reference to this in prompt to avoid misrepresenting ZIKI's age or gender. Do not allude to ZIKI's eye color.
+
+This generates some interesting prompts:
+
+Close-up of ZIKI, a male street artist in his 40s, spray-painting a vibrant mural on a city wall. His face shows intense concentration, with flecks of paint on his cheeks and forehead. He wears a respirator mask around his neck and a beanie on his head. The partially completed mural is visible behind him.
+
+ZIKI, a dapper gentleman spy in his 40s, engaged in a high-stakes poker game in a luxurious Monte Carlo casino. His face betrays no emotion as he studies his cards, one eyebrow slightly raised. He wears a tailored tuxedo and a bow tie, with a martini glass on the table in front of him.
+
+ZIKI, a distinguished-looking gentleman in his 40s, conducting a symphony orchestra. His expressive face shows intense concentration as he gestures dramatically with a baton. He wears a crisp tuxedo, and his salt-and-pepper hair is slightly disheveled from his passionate movements.
+
+To get started writing your own prompts, check out Meta Llama 3.1 405b, a fast and powerful language model that you can in the web or with an API on Replicate:
+
+import Replicate from "replicate"
+const replicate = new Replicate()
+const model = "meta/meta-llama-3.1-405b-instruct"
+const prompt = "Write ten prompts for an image generation model..."
+const output = await replicate.run(model, { input: { prompt } })
+console.log(output)
+Step 10: Train again if needed
+If you find that your first fine-tuned result is not producing exactly what you want, try the training process again with a higher number of steps, or with high quality images, or more images. There's no need to create a new model each time: you can keep using your existing model as the desination, and each new completed training will push to it as a new version.
+
+Step 11: Have fun
+If you need inspiration, check the collection of Flux fine-tunes on Replicate to see what other people have created.
+
+Have fun and share your results with the community on X or Discord.
